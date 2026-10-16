@@ -1,9 +1,9 @@
 // @ts-check
 import { escapeSnbtString } from './escape.js';
 
-/** @typedef {import('../types').BuildSettings} BuildSettings */
-/** @typedef {import('../types').MachinePart} MachinePart */
-/** @typedef {import('../types').VersionId} VersionId */
+/** @typedef {import('./types').BuildSettings} BuildSettings */
+/** @typedef {import('./types').MachinePart} MachinePart */
+/** @typedef {import('./types').VersionId} VersionId */
 
 /**
  * A version profile owns everything that differs between Minecraft versions:

@@ -1,17 +1,17 @@
 // @ts-check
-import { MAX_SCRIPT_CHARS } from '../generator/limits.js';
+import { MAX_SCRIPT_CHARS } from './limits.js';
 import { button, createStatus, el, formatNumber, input, select, textarea } from './dom.js';
 
-/** @typedef {import('../types').GenerateResult} GenerateResult */
+/** @typedef {import('./types').GenerateResult} GenerateResult */
 
-/** Keep in sync with --code-lh in styles/components.css. */
+/** Keep in sync with --code-lh in components.css. */
 const LINE_HEIGHT = 24;
 const MAX_IMPORT_BYTES = 1_000_000;
 
 /**
  * Script editor: textarea + line-number gutter, wrap toggle and .mcfunction import.
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('../state/store.js').createStore>} store
+ * @param {ReturnType<typeof import('./store.js').createStore>} store
  * @param {{ onGenerate: () => void, confirmReplace: () => boolean }} options
  */
 export function initEditor(root, store, { onGenerate, confirmReplace }) {

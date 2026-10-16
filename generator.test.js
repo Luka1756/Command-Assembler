@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeSnbtString } from '../src/generator/escape.js';
-import { parseScript } from '../src/generator/parse.js';
-import { generate } from '../src/generator/build.js';
-import { MAX_COMMAND_CHARS } from '../src/generator/limits.js';
+import { escapeSnbtString } from './escape.js';
+import { parseScript } from './parse.js';
+import { generate } from './build.js';
+import { MAX_COMMAND_CHARS } from './limits.js';
 
-/** @type {import('../src/types').BuildSettings} */
+/** @type {import('./types').BuildSettings} */
 const DEFAULTS = { version: '26.3+', spawnHeight: 1, selfCleaning: true };
 
 // Output shown in the reference screenshot for `say Hello, world!`

@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {import('../types').Example} Example */
+/** @typedef {import('./types').Example} Example */
 
 /**
  * Bundled, read-only example library. To add an example, append an object here:

@@ -1,8 +1,8 @@
 // @ts-check
-import { MAX_SCRIPT_CHARS } from '../generator/limits.js';
+import { MAX_SCRIPT_CHARS } from './limits.js';
 import { coerceSettings } from './settings.js';
 
-/** @typedef {import('../types').AppState} AppState */
+/** @typedef {import('./types').AppState} AppState */
 
 export const SHARE_KEY = 'setup';
 export const SHARE_FORMAT_VERSION = 1;

@@ -1,15 +1,15 @@
 // @ts-check
-import { CHAIN_BLOCK_LIMIT, MAX_COMMAND_CHARS, isValidSpawnHeight } from '../generator/limits.js';
-import { buildShareUrl, encodeSetup } from '../state/share.js';
+import { CHAIN_BLOCK_LIMIT, MAX_COMMAND_CHARS, isValidSpawnHeight } from './limits.js';
+import { buildShareUrl, encodeSetup } from './share.js';
 import { button, createStatus, el, formatNumber, input } from './dom.js';
 import { copyText } from './clipboard.js';
 
-/** @typedef {import('../types').GenerateResult} GenerateResult */
+/** @typedef {import('./types').GenerateResult} GenerateResult */
 
 /**
  * One-command output: stats, command text, diagnostics, copy and share.
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('../state/store.js').createStore>} store
+ * @param {ReturnType<typeof import('./store.js').createStore>} store
  */
 export function initOutputPanel(root, store) {
   const text = el(root, '#output-text');

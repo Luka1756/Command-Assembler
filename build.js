@@ -3,10 +3,10 @@ import { MAX_COMMAND_CHARS, SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN, isValidSpawnHeig
 import { parseScript } from './parse.js';
 import { PROFILES } from './profiles.js';
 
-/** @typedef {import('../types').BuildSettings} BuildSettings */
-/** @typedef {import('../types').Diagnostic} Diagnostic */
-/** @typedef {import('../types').GenerateResult} GenerateResult */
-/** @typedef {import('../types').MachinePart} MachinePart */
+/** @typedef {import('./types').BuildSettings} BuildSettings */
+/** @typedef {import('./types').Diagnostic} Diagnostic */
+/** @typedef {import('./types').GenerateResult} GenerateResult */
+/** @typedef {import('./types').MachinePart} MachinePart */
 
 /**
  * Chain blocks are counted from the generated structure. The minecart machine

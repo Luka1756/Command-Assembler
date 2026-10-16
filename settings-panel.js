@@ -1,16 +1,16 @@
 // @ts-check
-import { SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN, isValidSpawnHeight } from '../generator/limits.js';
-import { PROFILES, PROFILE_LIST } from '../generator/profiles.js';
-import { DEFAULT_SETTINGS } from '../state/settings.js';
+import { SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN, isValidSpawnHeight } from './limits.js';
+import { PROFILES, PROFILE_LIST } from './profiles.js';
+import { DEFAULT_SETTINGS } from './settings.js';
 import { button, el, input, select } from './dom.js';
 
-/** @typedef {import('../types').VersionId} VersionId */
+/** @typedef {import('./types').VersionId} VersionId */
 
 /**
  * Build settings: Minecraft version, spawn height, self-cleaning.
  * Only settings visible in the reference are implemented; see README.
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('../state/store.js').createStore>} store
+ * @param {ReturnType<typeof import('./store.js').createStore>} store
  */
 export function initSettingsPanel(root, store) {
   const versionSelect = select(root, '#version');

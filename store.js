@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {import('../types').AppState} AppState */
+/** @typedef {import('./types').AppState} AppState */
 /** @typedef {{ persist: boolean }} ChangeMeta */
 /** @typedef {(state: AppState, meta: ChangeMeta) => void} Listener */
 

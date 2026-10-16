@@ -1,9 +1,9 @@
 // @ts-check
-import { isValidSpawnHeight, SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN } from '../generator/limits.js';
-import { PROFILES } from '../generator/profiles.js';
+import { isValidSpawnHeight, SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN } from './limits.js';
+import { PROFILES } from './profiles.js';
 
-/** @typedef {import('../types').BuildSettings} BuildSettings */
-/** @typedef {import('../types').VersionId} VersionId */
+/** @typedef {import('./types').BuildSettings} BuildSettings */
+/** @typedef {import('./types').VersionId} VersionId */
 
 /** @type {Readonly<BuildSettings>} */
 export const DEFAULT_SETTINGS = Object.freeze({ version: '26.3+', spawnHeight: 1, selfCleaning: true });

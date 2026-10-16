@@ -29,7 +29,7 @@ npm test             # Node's built-in test runner (Node 20+), no install needed
 npm install && npm run check   # optional: type-checks the JSDoc types with TypeScript
 ```
 
-`tests/` covers escaping, parsing, validation, limits, share-link encoding and every bundled example. One test pins the generator to the output in the reference screenshot (`say Hello, world!` → exactly the screenshot's command, 382 characters).
+The `*.test.js` files cover escaping, parsing, validation, limits, share-link encoding and every bundled example. One test pins the generator to the output in the reference screenshot (`say Hello, world!` → exactly the screenshot's command, 382 characters).
 
 **Not tested automatically:** the generated command running inside Minecraft. See *Verified vs assumed*.
 
@@ -37,15 +37,19 @@ npm install && npm run check   # optional: type-checks the JSDoc types with Type
 
 The output is a single `summon falling_block` command. The falling block carries an activator rail and one `command_block_minecart` per script line as passengers, so the commands run in order from one pasted command. With **self-cleaning** on, two final minecarts remove the machine.
 
+All files live in one directory (the repository root). Every path in `index.html` and every `import` is `./name`.
+
 ```
-src/
-  generator/   pure logic, no DOM: parse.js, escape.js, profiles.js (per-version syntax), build.js, limits.js
-  state/       settings.js (defaults + validation), store.js, storage.js (localStorage), share.js (link encoding)
-  data/        examples.js (bundled example library)
-  ui/          editor, library, settings panel, output panel, page chrome
-  types.d.ts   shared types (checked via JSDoc)
-styles/        tokens.css (colours), base.css, components.css
-tests/
+index.html, main.js       page and entry point
+tokens.css, base.css, components.css   styles (colours are in tokens.css)
+
+parse.js, escape.js, profiles.js (per-version syntax), build.js, limits.js   generator: pure logic, no DOM
+settings.js (defaults + validation), store.js, storage.js (localStorage), share.js (link encoding)   state
+examples.js              bundled example library
+app.js, template.js, editor.js, library.js, settings-panel.js, output-panel.js, chrome.js, dom.js, clipboard.js   UI
+types.d.ts               shared types (checked via JSDoc)
+
+generator.test.js, share.test.js, examples.test.js   tests
 ```
 
 ### Script format
@@ -83,17 +87,17 @@ One command per line. Blank lines and lines starting with `#` are ignored (so `.
 ## Deliberately left out
 
 - **3D tab and 3D block placer** (out of scope for the first release).
-- **Other Minecraft versions.** Only `26.3+` is listed because it is the only profile with a verified sample. Older versions use different falling-block syntax that was not provided. To add one: add a profile in `src/generator/profiles.js` and a fixture test with a verified sample output.
+- **Other Minecraft versions.** Only `26.3+` is listed because it is the only profile with a verified sample. Older versions use different falling-block syntax that was not provided. To add one: add a profile in `profiles.js` and a fixture test with a verified sample output.
 - **The second toggle in Build settings.** It is hidden behind the tab strip in the screenshots, so its name and behaviour are unknown.
 - **Community submissions, accounts, any backend.**
 
 ## Adding examples
 
-Append an object to `src/data/examples.js` (`id`, `category`, `title`, `description`, `script`). `tests/examples.test.js` checks it generates cleanly.
+Append an object to `examples.js` (`id`, `category`, `title`, `description`, `script`). `examples.test.js` checks it generates cleanly.
 
 ## Fonts
 
-The interface uses system font stacks. The reference's typefaces could not be confirmed, so none are bundled. To use a specific font, add it with an `@font-face` rule and update `--font-sans` / `--font-mono` in `styles/tokens.css`.
+The interface uses system font stacks. The reference's typefaces could not be confirmed, so none are bundled. To use a specific font, add it with an `@font-face` rule and update `--font-sans` / `--font-mono` in `tokens.css`.
 
 ## Notes
 

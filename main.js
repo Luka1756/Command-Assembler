@@ -1,5 +1,5 @@
 // @ts-check
-import { mountApp } from './ui/app.js';
+import { mountApp } from './app.js';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing #app element');

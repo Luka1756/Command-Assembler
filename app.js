@@ -1,9 +1,9 @@
 // @ts-check
-import { generate } from '../generator/build.js';
-import { decodeSetup, extractPayload } from '../state/share.js';
-import { DEFAULT_SCRIPT, DEFAULT_SETTINGS } from '../state/settings.js';
-import { createStore } from '../state/store.js';
-import { loadWorkspace, saveWorkspace } from '../state/storage.js';
+import { generate } from './build.js';
+import { decodeSetup, extractPayload } from './share.js';
+import { DEFAULT_SCRIPT, DEFAULT_SETTINGS } from './settings.js';
+import { createStore } from './store.js';
+import { loadWorkspace, saveWorkspace } from './storage.js';
 import { createNotifier, initCollapsibles, initTabs } from './chrome.js';
 import { el } from './dom.js';
 import { initEditor } from './editor.js';
@@ -12,7 +12,7 @@ import { initOutputPanel } from './output-panel.js';
 import { initSettingsPanel } from './settings-panel.js';
 import { TEMPLATE } from './template.js';
 
-/** @typedef {import('../types').AppState} AppState */
+/** @typedef {import('./types').AppState} AppState */
 
 /** @param {HTMLElement} root */
 export function mountApp(root) {

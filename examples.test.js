@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EXAMPLES } from '../src/data/examples.js';
-import { generate } from '../src/generator/build.js';
+import { EXAMPLES } from './examples.js';
+import { generate } from './build.js';
 
 test('examples: ids are unique and every field is filled in', () => {
   const ids = new Set(EXAMPLES.map((example) => example.id));

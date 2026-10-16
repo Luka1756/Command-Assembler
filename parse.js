@@ -1,8 +1,8 @@
 // @ts-check
 
-/** @typedef {import('../types').Diagnostic} Diagnostic */
-/** @typedef {import('../types').ParsedScript} ParsedScript */
-/** @typedef {import('../types').ScriptCommand} ScriptCommand */
+/** @typedef {import('./types').Diagnostic} Diagnostic */
+/** @typedef {import('./types').ParsedScript} ParsedScript */
+/** @typedef {import('./types').ScriptCommand} ScriptCommand */
 
 // Control characters other than tab cannot be carried inside a command string.
 const CONTROL_CHARS = /[\u0000-\u0008\u000b-\u001f\u007f]/;

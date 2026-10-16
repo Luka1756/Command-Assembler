@@ -6,9 +6,9 @@ import {
   decodeSetup,
   encodeSetup,
   extractPayload,
-} from '../src/state/share.js';
+} from './share.js';
 
-/** @type {import('../src/types').AppState} */
+/** @type {import('./types').AppState} */
 const STATE = {
   script: 'say "héllo" \\ 日本語 🙂\ntellraw @a {"text":"x"}\n# comment',
   settings: { version: '26.3+', spawnHeight: 7, selfCleaning: false },

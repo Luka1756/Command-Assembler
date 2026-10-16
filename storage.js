@@ -1,8 +1,8 @@
 // @ts-check
 import { DEFAULT_SETTINGS, coerceSettings } from './settings.js';
 
-/** @typedef {import('../types').AppState} AppState */
-/** @typedef {import('../types').Creation} Creation */
+/** @typedef {import('./types').AppState} AppState */
+/** @typedef {import('./types').Creation} Creation */
 
 const WORKSPACE_KEY = 'command-assembler:workspace:v1';
 const CREATIONS_KEY = 'command-assembler:creations:v1';

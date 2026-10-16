@@ -11,5 +11,6 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["src"]
+  "include": ["*.js", "*.d.ts"],
+  "exclude": ["*.test.js", "node_modules"]
 }

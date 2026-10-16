@@ -1,11 +1,11 @@
 // @ts-check
-import { isValidSpawnHeight } from '../generator/limits.js';
-import { EXAMPLES } from '../data/examples.js';
-import { DEFAULT_SCRIPT } from '../state/settings.js';
-import { MAX_CREATIONS, MAX_NAME_CHARS, loadCreations, saveCreations } from '../state/storage.js';
+import { isValidSpawnHeight } from './limits.js';
+import { EXAMPLES } from './examples.js';
+import { DEFAULT_SCRIPT } from './settings.js';
+import { MAX_CREATIONS, MAX_NAME_CHARS, loadCreations, saveCreations } from './storage.js';
 import { button, createStatus, el, input, select } from './dom.js';
 
-/** @typedef {import('../types').Creation} Creation */
+/** @typedef {import('./types').Creation} Creation */
 
 /** @returns {string} */
 function newId() {
@@ -16,7 +16,7 @@ function newId() {
  * Example library: bundled community examples (read-only) and the user's own
  * creations (saved in this browser).
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('../state/store.js').createStore>} store
+ * @param {ReturnType<typeof import('./store.js').createStore>} store
  * @param {{ confirmReplace: () => boolean }} options
  */
 export function initLibrary(root, store, { confirmReplace }) {
