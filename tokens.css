@@ -1,0 +1,28 @@
+/* Design tokens. Yellow is the only accent; surfaces are neutral near-black. */
+:root {
+  --bg: #0b0b0c;
+  --surface: #121213;
+  --surface-2: #19191b;
+  --surface-3: #212124;
+
+  --border: #262629;
+  --border-strong: #3a3a3f;
+
+  --text: #ece6d6; /* warm off-white */
+  --text-muted: #8e8b84;
+  --text-faint: #5f5d58;
+
+  --accent: #ffd21f;
+  --accent-ink: #17130a; /* text on accent fills */
+  --accent-line: rgba(255, 210, 31, 0.45);
+  --accent-soft: rgba(255, 210, 31, 0.08);
+
+  --danger: #ff6b5e;
+  --danger-soft: rgba(255, 107, 94, 0.1);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --radius: 2px;
+  --gutter: 16px;
+}
