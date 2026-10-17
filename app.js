@@ -7,6 +7,7 @@ import { loadWorkspace, saveWorkspace } from './storage.js';
 import { createNotifier, initCollapsibles, initTabs } from './chrome.js';
 import { el } from './dom.js';
 import { initEditor } from './editor.js';
+import { initEditor3dPanel } from './editor3d-panel.js';
 import { initLibrary } from './library.js';
 import { initOutputPanel } from './output-panel.js';
 import { initReaderPanel } from './reader-panel.js';
@@ -69,6 +70,16 @@ export function mountApp(root) {
         block: 'start',
       }),
   });
+  const editor3d = initEditor3dPanel(root, store, {
+    confirmReplace,
+    confirmAction: (message) => window.confirm(message),
+    // Show the result: the generated machine and its length information are in the output panel.
+    onAdded: () =>
+      el(root, '#output').scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      }),
+  });
   const collapsibles = initCollapsibles(root);
   initTabs(root, collapsibles.expand);
 
@@ -87,6 +98,7 @@ export function mountApp(root) {
     editor.syncFromState();
     settingsPanel.sync();
     reader.refreshMode();
+    editor3d.refresh();
     recompute();
     if (meta.persist) {
       dirty = true;

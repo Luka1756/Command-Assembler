@@ -15,6 +15,7 @@ export const TEMPLATE = /* html */ `
     <div class="tabs-inner">
       <button type="button" class="tab" data-target="script">Script</button>
       <button type="button" class="tab" data-target="reader">Reader</button>
+      <button type="button" class="tab" data-target="editor3d">3D</button>
       <button type="button" class="tab" data-target="settings">Settings</button>
     </div>
   </nav>
@@ -145,6 +146,142 @@ export const TEMPLATE = /* html */ `
                 <button type="button" class="btn" id="reader-cancel">Cancel</button>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="editor3d" aria-labelledby="editor3d-title">
+        <div class="panel-head">
+          <span class="panel-num" aria-hidden="true">Tool</span>
+          <h2 id="editor3d-title">3D structure editor</h2>
+          <button type="button" class="collapse" aria-expanded="true" aria-controls="editor3d-body" aria-label="Collapse 3D structure editor">−</button>
+        </div>
+        <div class="panel-body" id="editor3d-body">
+          <div class="pad e3">
+            <p class="reader-intro">Set a size, choose the floor, wall and ceiling blocks, edit single blocks, then add the placement commands to your script. The structure is not saved on its own; the commands you add to the script are.</p>
+            <details class="formats">
+              <summary>Coordinates and rules</summary>
+              <ul>
+                <li><strong>Size</strong> is the outer size in blocks, boundary included. <strong>Width</strong> runs east–west (x), <strong>Height</strong> up (y), <strong>Length</strong> north–south (z).</li>
+                <li><strong>Origin</strong> (0, 0, 0) is the west, bottom, north corner. +x is east, +y is up, +z is south, as in Minecraft.</li>
+                <li><strong>Floor</strong> is the bottom layer, <strong>Ceiling</strong> the top layer, <strong>Walls</strong> the four sides between them. The inside is empty.</li>
+                <li>Where they meet, the priority is <strong>Floor, then Ceiling, then Wall</strong>. Height 1 is a floor only; height 2 has no walls; width or length 1 gives a single wall column.</li>
+                <li>A block you edit stays custom (marked <strong>M</strong>) when you change the floor, wall or ceiling blocks or the size, as long as its cell is still inside the structure. Restore returns it to its generated block.</li>
+              </ul>
+              <p>Block ids are checked for form only (for example <code>minecraft:glass</code>), not against the game, so a misspelt id passes here and fails in game. Block states such as <code>[facing=north]</code> are not supported.</p>
+            </details>
+
+            <fieldset class="e3-group">
+              <legend class="label">Size</legend>
+              <div class="e3-size">
+                <label class="e3-field"><span>Width (x)</span><input type="text" id="e3-width" inputmode="numeric" autocomplete="off" aria-describedby="e3-size-error" /></label>
+                <label class="e3-field"><span>Height (y)</span><input type="text" id="e3-height" inputmode="numeric" autocomplete="off" aria-describedby="e3-size-error" /></label>
+                <label class="e3-field"><span>Length (z)</span><input type="text" id="e3-length" inputmode="numeric" autocomplete="off" aria-describedby="e3-size-error" /></label>
+                <button type="button" class="btn" id="e3-apply">Apply size</button>
+              </div>
+              <p class="field-error" id="e3-size-error" role="alert" hidden></p>
+              <p class="hint" id="e3-size-hint"></p>
+            </fieldset>
+
+            <fieldset class="e3-group">
+              <legend class="label">Boundary blocks</legend>
+              <div class="e3-roles">
+                <label class="e3-role"><span class="e3-badge" data-role="floor" aria-hidden="true">F</span><span class="e3-role-name">Floor</span><input type="text" id="e3-floor" list="e3-blocks" autocomplete="off" spellcheck="false" /></label>
+                <label class="e3-role"><span class="e3-badge" data-role="wall" aria-hidden="true">W</span><span class="e3-role-name">Wall</span><input type="text" id="e3-wall" list="e3-blocks" autocomplete="off" spellcheck="false" /></label>
+                <label class="e3-role"><span class="e3-badge" data-role="ceiling" aria-hidden="true">C</span><span class="e3-role-name">Ceiling</span><input type="text" id="e3-ceiling" list="e3-blocks" autocomplete="off" spellcheck="false" /></label>
+              </div>
+              <datalist id="e3-blocks"></datalist>
+              <p class="field-error" id="e3-role-error" role="alert" hidden></p>
+              <p class="hint">Type to search common blocks, or enter any valid id. The list is not complete.</p>
+            </fieldset>
+
+            <div class="e3-stage">
+              <div class="e3-toolbar" role="toolbar" aria-label="Editor tools">
+                <div class="e3-tools" role="group" aria-label="Tool">
+                  <button type="button" class="btn e3-tool" data-tool="select" aria-pressed="true">Select</button>
+                  <button type="button" class="btn e3-tool" data-tool="place" aria-pressed="false">Place</button>
+                  <button type="button" class="btn e3-tool" data-tool="erase" aria-pressed="false">Erase</button>
+                  <button type="button" class="btn e3-tool" data-tool="restore" aria-pressed="false">Restore</button>
+                </div>
+                <div class="e3-history" role="group" aria-label="History and view">
+                  <button type="button" class="btn" id="e3-undo" disabled>Undo</button>
+                  <button type="button" class="btn" id="e3-redo" disabled>Redo</button>
+                  <button type="button" class="btn" id="e3-camera">Reset view</button>
+                </div>
+              </div>
+              <p class="e3-tool-hint" id="e3-tool-hint" aria-live="polite"></p>
+              <div class="e3-canvas-wrap">
+                <canvas id="e3-canvas" class="e3-canvas" tabindex="0" role="application" aria-label="3D structure viewport. Arrow keys rotate, plus and minus zoom, zero resets the view."></canvas>
+              </div>
+              <ul class="e3-legend" aria-label="Legend">
+                <li><span class="e3-badge" data-role="floor" aria-hidden="true">F</span>Floor</li>
+                <li><span class="e3-badge" data-role="wall" aria-hidden="true">W</span>Wall</li>
+                <li><span class="e3-badge" data-role="ceiling" aria-hidden="true">C</span>Ceiling</li>
+                <li><span class="e3-badge" data-role="custom" aria-hidden="true">M</span>Edited</li>
+              </ul>
+              <label class="e3-layer"><span>Show layers up to <strong id="e3-layer-value"></strong> <span class="e3-muted">(view only)</span></span><input type="range" id="e3-layer" min="0" max="0" step="1" /></label>
+              <details class="formats">
+                <summary>Controls</summary>
+                <ul>
+                  <li><strong>Mouse:</strong> drag to rotate, right-drag or Shift-drag to pan, wheel to zoom, click to use the tool.</li>
+                  <li><strong>Touch:</strong> drag with one finger to rotate, pinch to zoom, drag with two fingers to pan, tap to use the tool.</li>
+                  <li><strong>Keyboard</strong> (viewport focused): arrow keys rotate, Shift + arrows pan, + and − zoom, 0 resets the view, Ctrl+Z undo, Ctrl+Y redo. Use the cell fields below to select any cell without the mouse.</li>
+                </ul>
+              </details>
+              <p class="e3-stats" id="e3-stats"></p>
+              <p class="status" id="e3-status" role="status"></p>
+            </div>
+
+            <fieldset class="e3-group">
+              <legend class="label">Selected cell</legend>
+              <div class="e3-cell">
+                <label class="e3-field"><span>x</span><input type="text" id="e3-sel-x" inputmode="numeric" autocomplete="off" /></label>
+                <label class="e3-field"><span>y</span><input type="text" id="e3-sel-y" inputmode="numeric" autocomplete="off" /></label>
+                <label class="e3-field"><span>z</span><input type="text" id="e3-sel-z" inputmode="numeric" autocomplete="off" /></label>
+                <button type="button" class="btn" id="e3-sel-go">Select cell</button>
+              </div>
+              <p class="e3-info" id="e3-sel-info"></p>
+              <label class="e3-place"><span class="label">Block to place or use for Replace</span><input type="text" id="e3-place-block" list="e3-blocks" autocomplete="off" spellcheck="false" /></label>
+              <div class="e3-actions">
+                <button type="button" class="btn" id="e3-replace">Replace with this block</button>
+                <button type="button" class="btn" id="e3-erase-sel">Erase</button>
+                <button type="button" class="btn" id="e3-restore-sel">Restore default</button>
+                <button type="button" class="link-btn" id="e3-reset-edits">Reset structure</button>
+              </div>
+            </fieldset>
+
+            <fieldset class="e3-group">
+              <legend class="label">Commands</legend>
+              <div class="e3-origin">
+                <label class="e3-field e3-wide"><span>Coordinates</span>
+                  <select id="e3-mode">
+                    <option value="relative">Relative to the machine (~)</option>
+                    <option value="absolute">Absolute world coordinates</option>
+                  </select>
+                </label>
+                <label class="e3-field"><span>Origin x</span><input type="text" id="e3-ox" inputmode="numeric" autocomplete="off" /></label>
+                <label class="e3-field"><span>Origin y</span><input type="text" id="e3-oy" inputmode="numeric" autocomplete="off" /></label>
+                <label class="e3-field"><span>Origin z</span><input type="text" id="e3-oz" inputmode="numeric" autocomplete="off" /></label>
+              </div>
+              <p class="field-error" id="e3-origin-error" role="alert" hidden></p>
+              <p class="hint" id="e3-origin-hint"></p>
+              <label class="e3-check"><input type="checkbox" id="e3-clear" /> <span>Clear the whole area with air first, so empty cells really end up empty</span></label>
+              <p class="e3-summary" id="e3-summary" aria-live="polite"></p>
+              <ul class="e3-notes" id="e3-warnings" hidden></ul>
+              <details class="formats" id="e3-cmds-wrap">
+                <summary id="e3-cmds-title">Show commands</summary>
+                <pre class="e3-cmds" id="e3-cmds" tabindex="0"></pre>
+              </details>
+              <fieldset class="reader-mode" id="e3-import-mode">
+                <legend class="label">Add to script</legend>
+                <label><input type="radio" name="e3-import" value="append" /> <span id="e3-import-append"></span></label>
+                <label><input type="radio" name="e3-import" value="replace" /> <span id="e3-import-replace"></span></label>
+              </fieldset>
+              <div class="reader-actions">
+                <button type="button" class="btn btn-primary" id="e3-add">Add to script</button>
+              </div>
+              <p class="status" id="e3-result" role="status"></p>
+            </fieldset>
           </div>
         </div>
       </section>

@@ -17,9 +17,25 @@ import { escapeSnbtString } from './escape.js';
  * @property {string} label
  * @property {string} hint
  * @property {string[]} cleanupCommands  commands this profile appends when self-cleaning is on
+ * @property {BlockPlacement} placement  how the 3D editor writes block placement for this version
  * @property {(commands: string[], settings: BuildSettings) => MachinePart[]} buildParts
  * @property {(parts: MachinePart[], settings: BuildSettings) => string} render
  */
+
+/**
+ * Block placement syntax used by the 3D editor. `pos` arguments are already formatted ("~1 ~ ~2" or "10 64 -3").
+ * setblock and fill have the same shape in every release profile listed here; a profile whose syntax
+ * differs supplies its own functions.
+ * @typedef {object} BlockPlacement
+ * @property {(pos: string, block: string) => string} setblock
+ * @property {(from: string, to: string, block: string) => string} fill
+ */
+
+/** @type {BlockPlacement} */
+const PLACEMENT = {
+  setblock: (pos, block) => `setblock ${pos} ${block}`,
+  fill: (from, to, block) => `fill ${from} ${to} ${block}`,
+};
 
 /** @param {string} command */
 const minecart = (command) => `{id:command_block_minecart,Command:"${escapeSnbtString(command)}"}`;
@@ -45,6 +61,7 @@ function compactBlockStateProfile({ id, channel, label, hint }) {
     label,
     hint,
     cleanupCommands: CLEANUP_COMMANDS,
+    placement: PLACEMENT,
 
     buildParts(commands, settings) {
       /** @type {MachinePart[]} */
