@@ -14,6 +14,7 @@ export const TEMPLATE = /* html */ `
   <nav class="tabs" aria-label="Sections">
     <div class="tabs-inner">
       <button type="button" class="tab" data-target="script">Script</button>
+      <button type="button" class="tab" data-target="reader">Reader</button>
       <button type="button" class="tab" data-target="settings">Settings</button>
     </div>
   </nav>
@@ -95,6 +96,59 @@ export const TEMPLATE = /* html */ `
         </div>
       </section>
 
+      <section class="panel" id="reader" aria-labelledby="reader-title">
+        <div class="panel-head">
+          <span class="panel-num" aria-hidden="true">Tool</span>
+          <h2 id="reader-title">Command reader</h2>
+          <button type="button" class="collapse" aria-expanded="true" aria-controls="reader-body" aria-label="Collapse Command reader">−</button>
+        </div>
+        <div class="panel-body" id="reader-body">
+          <div class="pad reader-form">
+            <p class="reader-intro">Paste text that contains <code>Command:"…"</code> fields. The commands are read in order and previewed, and only added to your script when you confirm.</p>
+            <details class="formats">
+              <summary>Supported input</summary>
+              <ul>
+                <li>Minecraft NBT text (SNBT), such as <code>{id:command_block_minecart,Command:"say hi"}</code>, including the summon commands this tool generates.</li>
+                <li>Output of <code>/data get</code> on command blocks and command block minecarts, where the field is written <code>Command: "say hi"</code>.</li>
+                <li>JSON-style <code>{"Command":"say hi"}</code>, with double or single quotes.</li>
+                <li><code>Command</code> fields at any depth, with other data around them. The field name is case-sensitive.</li>
+              </ul>
+              <p>Not supported: binary files (.nbt, .dat, .mcstructure), text that sits inside another quoted string, lowercase <code>command</code> fields such as click events, and commands without a <code>Command</code> field (use Import .mcfunction for those).</p>
+            </details>
+            <label class="label" for="reader-input">Source text</label>
+            <textarea id="reader-input" class="reader-input" rows="7" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder='{id:command_block_minecart,Command:"say hello"}'></textarea>
+            <div class="reader-actions">
+              <button type="button" class="btn btn-primary" id="reader-read">Read commands</button>
+              <button type="button" class="btn" id="reader-clear">Clear</button>
+            </div>
+            <p class="status" id="reader-status" role="status"></p>
+          </div>
+          <div class="reader-preview" id="reader-preview" hidden>
+            <div class="pad">
+              <p class="reader-summary" id="reader-summary"></p>
+              <ol class="reader-list" id="reader-list"></ol>
+              <details class="reader-notes" id="reader-skipped-wrap" hidden>
+                <summary id="reader-skipped-title"></summary>
+                <ul id="reader-skipped"></ul>
+              </details>
+              <details class="reader-notes" id="reader-warnings-wrap" hidden>
+                <summary id="reader-warnings-title"></summary>
+                <ul id="reader-warnings"></ul>
+              </details>
+              <fieldset class="reader-mode" id="reader-mode">
+                <legend class="label">Add to script</legend>
+                <label><input type="radio" name="reader-mode" value="append" /> <span id="reader-mode-append"></span></label>
+                <label><input type="radio" name="reader-mode" value="replace" /> <span id="reader-mode-replace"></span></label>
+              </fieldset>
+              <div class="reader-actions">
+                <button type="button" class="btn btn-primary" id="reader-import">Import</button>
+                <button type="button" class="btn" id="reader-cancel">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel" id="settings" aria-labelledby="settings-title">
         <div class="panel-head">
           <span class="panel-num" aria-hidden="true">02</span>
@@ -147,7 +201,22 @@ export const TEMPLATE = /* html */ `
         </div>
         <div class="panel-body" id="output-body">
           <div class="pad">
-            <pre class="output" id="output-text" tabindex="0" aria-label="Generated command"></pre>
+            <div class="output-grid">
+              <pre class="output" id="output-text" tabindex="0" aria-label="Generated command"></pre>
+              <aside class="limits" aria-label="Command length limits">
+                <p class="limit" title="The longest command the command block text field accepts, counted in characters.">
+                  <span class="limit-label">Max Command Block Length:</span> <strong id="limit-block"></strong>
+                </p>
+                <p class="limit" title="The largest string NBT can store, counted in bytes rather than characters. It applies to commands set through NBT or data editing, not typed into the block.">
+                  <span class="limit-label">Max Edited Command Block Length:</span> <strong id="limit-edited"></strong>
+                </p>
+                <details class="limits-help">
+                  <summary>What these mean</summary>
+                  <p><strong>Max Command Block Length</strong> is the longest command the command block text field accepts, in characters. Command Assembler applies it to the generated command.</p>
+                  <p><strong>Max Edited Command Block Length</strong> is the largest string NBT can store, in bytes rather than characters. It matters when a command is set through NBT or data editing instead of being typed into the block. Command Assembler never produces commands that long, and whether the game runs commands over 32,500 characters is not verified.</p>
+                </details>
+              </aside>
+            </div>
             <ul class="diagnostics" id="diagnostics" hidden></ul>
           </div>
           <div class="caution">

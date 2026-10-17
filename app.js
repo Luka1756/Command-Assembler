@@ -9,6 +9,7 @@ import { el } from './dom.js';
 import { initEditor } from './editor.js';
 import { initLibrary } from './library.js';
 import { initOutputPanel } from './output-panel.js';
+import { initReaderPanel } from './reader-panel.js';
 import { initSettingsPanel } from './settings-panel.js';
 import { TEMPLATE } from './template.js';
 
@@ -59,6 +60,15 @@ export function mountApp(root) {
     },
     confirmReplace,
   });
+  const reader = initReaderPanel(root, store, {
+    confirmReplace,
+    // Show the result of an import: bring the script into view.
+    onImported: () =>
+      el(root, '#script').scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      }),
+  });
   const collapsibles = initCollapsibles(root);
   initTabs(root, collapsibles.expand);
 
@@ -76,6 +86,7 @@ export function mountApp(root) {
   store.subscribe((state, meta) => {
     editor.syncFromState();
     settingsPanel.sync();
+    reader.refreshMode();
     recompute();
     if (meta.persist) {
       dirty = true;

@@ -1,6 +1,6 @@
 // @ts-check
 import { SPAWN_HEIGHT_MAX, SPAWN_HEIGHT_MIN, isValidSpawnHeight } from './limits.js';
-import { PROFILES, PROFILE_LIST } from './profiles.js';
+import { CHANNELS, PROFILES, PROFILE_LIST } from './profiles.js';
 import { DEFAULT_SETTINGS } from './settings.js';
 import { button, el, input, select } from './dom.js';
 
@@ -20,7 +20,15 @@ export function initSettingsPanel(root, store) {
   const selfCleaning = button(root, '#self-cleaning');
   const reset = button(root, '#reset-settings');
 
-  for (const profile of PROFILE_LIST) versionSelect.add(new Option(profile.label, profile.id));
+  // Releases and snapshots are listed in separate groups so the difference is visible.
+  for (const channel of CHANNELS) {
+    const group = document.createElement('optgroup');
+    group.label = channel.label;
+    for (const profile of PROFILE_LIST.filter((p) => p.channel === channel.id)) {
+      group.append(new Option(profile.label, profile.id));
+    }
+    if (group.children.length > 0) versionSelect.append(group);
+  }
 
   versionSelect.addEventListener('change', () => {
     store.set({ settings: { ...store.get().settings, version: /** @type {VersionId} */ (versionSelect.value) } });
@@ -47,7 +55,9 @@ export function initSettingsPanel(root, store) {
   function sync() {
     const { settings } = store.get();
     versionSelect.value = settings.version;
-    versionHint.textContent = PROFILES[settings.version]?.hint ?? '';
+    const profile = PROFILES[settings.version];
+    versionHint.textContent = profile?.hint ?? '';
+    versionHint.dataset.channel = profile?.channel ?? '';
     selfCleaning.setAttribute('aria-checked', String(settings.selfCleaning));
 
     const valid = isValidSpawnHeight(settings.spawnHeight);

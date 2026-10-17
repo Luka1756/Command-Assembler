@@ -53,7 +53,16 @@ export function generate(script, settings) {
   }
 
   /** @type {GenerateResult} */
-  const failed = { output: '', ok: false, diagnostics, commandCount, commandChars, outputLength: 0, chainBlocks: 0 };
+  const failed = {
+    output: '',
+    ok: false,
+    diagnostics,
+    commandCount,
+    commandChars,
+    outputLength: 0,
+    chainBlocks: 0,
+    profileId: profile ? profile.id : null,
+  };
   if (!profile || diagnostics.some((d) => d.severity === 'error')) return failed;
 
   const parts = profile.buildParts(
@@ -74,5 +83,14 @@ export function generate(script, settings) {
     return { ...failed, output, outputLength: output.length, chainBlocks };
   }
 
-  return { output, ok: true, diagnostics, commandCount, commandChars, outputLength: output.length, chainBlocks };
+  return {
+    output,
+    ok: true,
+    diagnostics,
+    commandCount,
+    commandChars,
+    outputLength: output.length,
+    chainBlocks,
+    profileId: profile.id,
+  };
 }

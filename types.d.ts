@@ -1,5 +1,8 @@
 /** Minecraft version profiles the generator can target. Only verified profiles are listed. */
-export type VersionId = '26.3+';
+export type VersionId = '26.3+' | '26.4-snapshot-4';
+
+/** Stable release or development snapshot. */
+export type VersionChannel = 'release' | 'snapshot';
 
 export interface BuildSettings {
   version: VersionId;
@@ -49,6 +52,30 @@ export interface GenerateResult {
   outputLength: number;
   /** Chain command blocks in the generated structure. */
   chainBlocks: number;
+  /** The version profile used, or null when none could be selected. */
+  profileId: VersionId | null;
+}
+
+/** A command value read from a Command field. Text is exactly as decoded, never trimmed or reformatted. */
+export interface ReadCommand {
+  text: string;
+  /** 1-based line of the field in the pasted text. */
+  line: number;
+}
+
+/** A skipped entry or a warning from the Command Reader. */
+export interface ReadIssue {
+  line: number;
+  message: string;
+}
+
+export interface ReadResult {
+  commands: ReadCommand[];
+  /** Command fields that were found but not imported, with the reason. */
+  skipped: ReadIssue[];
+  warnings: ReadIssue[];
+  /** Set when the input could not be read at all (empty or too large). */
+  error: string | null;
 }
 
 export interface AppState {

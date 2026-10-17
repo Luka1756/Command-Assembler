@@ -1,5 +1,5 @@
 // @ts-check
-import { CHAIN_BLOCK_LIMIT, MAX_COMMAND_CHARS, isValidSpawnHeight } from './limits.js';
+import { CHAIN_BLOCK_LIMIT, MAX_COMMAND_CHARS, MAX_EDITED_COMMAND_LENGTH, isValidSpawnHeight } from './limits.js';
 import { buildShareUrl, encodeSetup } from './share.js';
 import { button, createStatus, el, formatNumber, input } from './dom.js';
 import { copyText } from './clipboard.js';
@@ -22,6 +22,10 @@ export function initOutputPanel(root, store) {
   const statMax = el(root, '#stat-max');
   const statChain = el(root, '#stat-chain');
   const setStatus = createStatus(el(root, '#output-status'));
+
+  // Length-limit labels beside the output; values come from limits.js so they stay in one place.
+  el(root, '#limit-block').textContent = formatNumber(MAX_COMMAND_CHARS);
+  el(root, '#limit-edited').textContent = formatNumber(MAX_EDITED_COMMAND_LENGTH);
 
   /** @type {GenerateResult | null} */
   let current = null;

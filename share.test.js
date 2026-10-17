@@ -96,3 +96,13 @@ test('share: url helpers', () => {
   assert.equal(extractPayload('#other=1'), null);
   assert.equal(extractPayload(''), null);
 });
+
+test('share: a setup using the 26.4 snapshot profile round-trips', () => {
+  const state = { script: 'say snap', settings: { version: '26.4-snapshot-4', spawnHeight: 3, selfCleaning: true } };
+  const encoded = encodeSetup(state);
+  assert.equal(encoded.ok, true);
+  if (!encoded.ok) return;
+  const decoded = decodeSetup(encoded.payload);
+  assert.equal(decoded.ok, true);
+  if (decoded.ok) assert.deepEqual(decoded.state, state);
+});

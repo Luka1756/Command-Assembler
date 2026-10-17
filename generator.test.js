@@ -4,6 +4,7 @@ import { escapeSnbtString } from './escape.js';
 import { parseScript } from './parse.js';
 import { generate } from './build.js';
 import { MAX_COMMAND_CHARS } from './limits.js';
+import { CHANNELS, PROFILES, PROFILE_LIST } from './profiles.js';
 
 /** @type {import('./types').BuildSettings} */
 const DEFAULTS = { version: '26.3+', spawnHeight: 1, selfCleaning: true };
@@ -64,6 +65,40 @@ test('generate: matches the reference output and its reported 382 characters', (
   assert.equal(result.commandCount, 1);
   assert.equal(result.commandChars, 17);
   assert.equal(result.chainBlocks, 0);
+});
+
+test('profiles: release and snapshot are distinct channels and every profile is grouped', () => {
+  assert.equal(PROFILES['26.3+'].channel, 'release');
+  assert.equal(PROFILES['26.4-snapshot-4'].channel, 'snapshot');
+  assert.notEqual(PROFILES['26.3+'].label, PROFILES['26.4-snapshot-4'].label);
+  const grouped = new Set(CHANNELS.map((channel) => channel.id));
+  for (const profile of PROFILE_LIST) assert.ok(grouped.has(profile.channel), profile.id);
+  for (const [id, profile] of Object.entries(PROFILES)) assert.equal(profile.id, id);
+});
+
+test('profiles: the snapshot profile is selected by the generator and the release profile is unchanged', () => {
+  const release = generate('say Hello, world!', DEFAULTS);
+  const snapshot = generate('say Hello, world!', { ...DEFAULTS, version: '26.4-snapshot-4' });
+  assert.equal(release.profileId, '26.3+');
+  assert.equal(snapshot.profileId, '26.4-snapshot-4');
+  assert.equal(release.output, REFERENCE_OUTPUT);
+  assert.equal(release.outputLength, 382);
+  // Snapshot 4's notes list no change to this syntax, so its output matches 26.3+.
+  assert.equal(snapshot.ok, true);
+  assert.equal(snapshot.output, REFERENCE_OUTPUT);
+});
+
+test('profiles: snapshot respects spawn height and self-cleaning like any other profile', () => {
+  const settings = { version: /** @type {const} */ ('26.4-snapshot-4'), spawnHeight: 7, selfCleaning: false };
+  const { output } = generate('say x', settings);
+  assert.ok(output.startsWith('summon falling_block ~ ~7 ~ {'));
+  assert.ok(!output.includes('setblock'));
+});
+
+test('profiles: an unknown version still reports no profile', () => {
+  const result = generate('say x', /** @type {any} */ ({ ...DEFAULTS, version: '26.4-snapshot-5' }));
+  assert.equal(result.ok, false);
+  assert.equal(result.profileId, null);
 });
 
 test('generate: commands keep script order, between the rail and the cleanup', () => {
