@@ -52,8 +52,9 @@ export function initTabs(root, expand) {
   function markActive() {
     let active = ids[0];
     for (const id of ids) {
-      const top = document.getElementById(id)?.getBoundingClientRect().top;
-      if (top !== undefined && top <= 140) active = id;
+      const rect = document.getElementById(id)?.getBoundingClientRect();
+      // A hidden view has no size; its sections must not count as scrolled past.
+      if (rect && rect.height > 0 && rect.top <= 140) active = id;
     }
     tabs.forEach((tab) => tab.setAttribute('aria-current', String(tab.dataset.target === active)));
   }
@@ -71,6 +72,9 @@ export function initTabs(root, expand) {
     },
     { passive: true },
   );
+  window.addEventListener('hashchange', () => requestAnimationFrame(markActive));
+  window.addEventListener('load', markActive);
+  requestAnimationFrame(markActive);
   markActive();
 }
 
