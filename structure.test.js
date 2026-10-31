@@ -17,8 +17,11 @@ import {
   resetEdits,
   resolveCells,
   restoreCell,
+  clearAll,
   setCell,
+  setProps,
   setRoleBlock,
+  setShell,
   validateDimensions,
 } from './structure.js';
 
@@ -179,7 +182,7 @@ test('edit: place, replace and erase a cell', () => {
   let state = make(5, 5, 5);
   // Place in an empty interior cell.
   state = must(setCell(state, 2, 2, 2, 'minecraft:stone'));
-  assert.deepEqual(cellInfo(state, 2, 2, 2), { inBounds: true, role: null, generated: null, block: 'minecraft:stone', custom: true });
+  assert.deepEqual(cellInfo(state, 2, 2, 2), { inBounds: true, role: null, generated: null, block: 'minecraft:stone', custom: true, props: null });
   assert.equal(countBlocks(state), countGenerated(state.dims) + 1);
   // Replace a generated wall block.
   state = must(setCell(state, 0, 2, 2, 'oak_planks'));
@@ -343,4 +346,77 @@ test('history: the number of undo steps is bounded', () => {
   while (h.canUndo) { h.undo(); steps++; }
   assert.equal(steps, 3);
   assert.equal(h.present, 7);
+});
+
+// ---------- command blocks, shell switch, props ----------
+
+test('command block: placing stores facing, command and default Always Active per type', () => {
+  let state = createState({ width: 5, height: 3, length: 5 });
+  let r = setCell(state, 2, 1, 2, 'minecraft:command_block', { facing: 'east', command: 'say hi' });
+  assert.ok(r.ok);
+  state = r.state;
+  assert.deepEqual(cellInfo(state, 2, 1, 2).props, { facing: 'east', command: 'say hi', auto: false });
+  r = setCell(state, 2, 1, 3, 'minecraft:chain_command_block');
+  assert.ok(r.ok);
+  assert.deepEqual(cellInfo(r.state, 2, 1, 3).props, { facing: 'north', command: '', auto: true });
+  const cell = resolveCells(r.state).find((c) => c.x === 2 && c.y === 1 && c.z === 2);
+  assert.equal(cell?.props?.facing, 'east');
+});
+
+test('command block: invalid facing or multi-line command is refused', () => {
+  const state = createState({ width: 5, height: 3, length: 5 });
+  assert.equal(setCell(state, 2, 1, 2, 'minecraft:command_block', { command: 'a\nb' }).ok, false);
+  // @ts-expect-error deliberately wrong
+  assert.equal(setCell(state, 2, 1, 2, 'minecraft:command_block', { facing: 'sideways' }).ok, false);
+});
+
+test('command block: setProps edits in place; replacing by another block or erasing removes props', () => {
+  let state = /** @type {any} */ (setCell(createState({ width: 5, height: 3, length: 5 }), 2, 1, 2, 'minecraft:command_block', { facing: 'up' })).state;
+  state = /** @type {any} */ (setProps(state, 2, 1, 2, { command: 'time set day' })).state;
+  assert.equal(cellInfo(state, 2, 1, 2).props?.command, 'time set day');
+  assert.equal(cellInfo(state, 2, 1, 2).props?.facing, 'up');
+  assert.equal(setProps(state, 1, 1, 1, { command: 'x' }).ok, false);
+  const stone = /** @type {any} */ (setCell(state, 2, 1, 2, 'minecraft:stone')).state;
+  assert.equal(stone.props.size, 0);
+  const erased = /** @type {any} */ (setCell(state, 2, 1, 2, null)).state;
+  assert.equal(erased.props.size, 0);
+});
+
+test('command block: props survive a resize that keeps the cell and go with a cell that is dropped', () => {
+  let state = /** @type {any} */ (setCell(createState({ width: 7, height: 4, length: 7 }), 5, 1, 5, 'minecraft:repeating_command_block', { facing: 'south' })).state;
+  const kept = /** @type {any} */ (changeDimensions(state, { width: 7, height: 4, length: 8 }));
+  assert.equal(kept.state.props.size, 1);
+  const dropped = /** @type {any} */ (changeDimensions(state, { width: 5, height: 4, length: 5 }));
+  assert.equal(dropped.dropped, 1);
+  assert.equal(dropped.state.props.size, 0);
+  assert.equal(resetEdits(state).props.size, 0);
+});
+
+test('boundary blocks cannot be command blocks', () => {
+  assert.equal(setRoleBlock(createState(), 'wall', 'minecraft:chain_command_block').ok, false);
+});
+
+test('shell switch: off leaves an empty grid; hand-placed blocks remain; on restores the room', () => {
+  const base = createState({ width: 5, height: 4, length: 5 });
+  const withBlock = /** @type {any} */ (setCell(base, 2, 1, 2, 'minecraft:stone')).state;
+  const off = setShell(withBlock, false);
+  assert.equal(countBlocks(off), 1);
+  assert.equal(resolveCells(off).length, 1);
+  assert.equal(countBlocks(setShell(off, true)), countGenerated(base.dims) + 1);
+});
+
+test('shell switch: an erase of a shell block is not reported as custom while the shell is off', () => {
+  const base = createState({ width: 5, height: 4, length: 5 });
+  const erased = /** @type {any} */ (setCell(base, 0, 1, 2, null)).state;
+  const off = setShell(erased, false);
+  assert.equal(cellInfo(off, 0, 1, 2).custom, false);
+  assert.equal(countBlocks(off), 0);
+  assert.equal(countBlocks(setShell(off, true)), countGenerated(base.dims) - 1);
+});
+
+test('clearAll removes every block and keeps size and settings', () => {
+  const state = clearAll(createState({ width: 4, height: 4, length: 4 }));
+  assert.equal(countBlocks(state), 0);
+  assert.equal(resolveCells(state).length, 0);
+  assert.equal(state.dims.width, 4);
 });

@@ -1,6 +1,6 @@
 // @ts-check
 import { CHAIN_BLOCK_LIMIT, MAX_COMMAND_CHARS, MAX_EDITED_COMMAND_LENGTH, isValidSpawnHeight } from './limits.js';
-import { buildShareUrl, encodeSetup } from './share.js';
+import { buildShareUrl, encodeSetupCompact } from './share.js';
 import { button, createStatus, el, formatNumber, input } from './dom.js';
 import { copyText } from './clipboard.js';
 
@@ -46,7 +46,7 @@ export function initOutputPanel(root, store) {
   });
 
   shareButton.addEventListener('click', async () => {
-    const encoded = encodeSetup(store.get());
+    const encoded = await encodeSetupCompact(store.get());
     if (!encoded.ok) {
       setStatus(encoded.error, 'error');
       return;
@@ -54,7 +54,7 @@ export function initOutputPanel(root, store) {
     const url = buildShareUrl(window.location.href, encoded.payload);
     if (await copyText(url)) {
       fallback.hidden = true;
-      setStatus('Share link copied. It contains your script and build settings, so anyone with the link can read them.', 'ok');
+      setStatus(`Share link copied (${formatNumber(url.length)} characters${encoded.format === 'compact' ? ', compressed' : ''}). It contains your script and build settings, so anyone with the link can read them.`, 'ok');
     } else {
       fallbackInput.value = url;
       fallback.hidden = false;

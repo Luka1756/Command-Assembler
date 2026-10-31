@@ -106,3 +106,92 @@ test('share: a setup using the 26.4 snapshot profile round-trips', () => {
   assert.equal(decoded.ok, true);
   if (decoded.ok) assert.deepEqual(decoded.state, state);
 });
+
+// ---------- compact (z1) links ----------
+import { COMPACT_PREFIX, MAX_DECOMPRESSED_BYTES, decodeAnySetup, encodeSetupCompact } from './share.js';
+
+const BIG = {
+  script: Array.from({ length: 300 }, (_, i) => `setblock ~${i % 20} ~${i % 7} ~${i % 11} minecraft:stone`).join('\n'),
+  settings: { version: '26.3+', spawnHeight: 4, selfCleaning: true },
+};
+
+test('compact: a large script gives a shorter link that restores exactly', async () => {
+  const plain = encodeSetup(BIG);
+  const compact = await encodeSetupCompact(BIG);
+  assert.ok(plain.ok && compact.ok);
+  assert.equal(compact.format, 'compact');
+  assert.ok(compact.payload.startsWith(COMPACT_PREFIX));
+  assert.match(compact.payload, /^z1\.[A-Za-z0-9_-]+$/);
+  assert.ok(compact.payload.length < plain.payload.length / 2, `${compact.payload.length} vs ${plain.payload.length}`);
+  const back = await decodeAnySetup(compact.payload);
+  assert.ok(back.ok);
+  assert.deepEqual(back.state, BIG);
+});
+
+test('compact: unusual text survives (unicode, quotes, backslashes, CRLF, trailing spaces)', async () => {
+  const state = { script: 'say "héllo" \\ 日本語 🙂\r\ntellraw @a {"text":"x"}  \n\n# end ', settings: { version: '26.4-snapshot-4', spawnHeight: 0, selfCleaning: false } };
+  const encoded = await encodeSetupCompact({ ...state, script: state.script.repeat(20) });
+  assert.ok(encoded.ok);
+  const back = await decodeAnySetup(encoded.payload);
+  assert.ok(back.ok);
+  assert.deepEqual(back.state, { ...state, script: state.script.repeat(20) });
+});
+
+test('compact: a tiny script round-trips and the link is never longer than the plain one', async () => {
+  const state = { script: 'say hi', settings: BIG.settings };
+  const encoded = await encodeSetupCompact(state);
+  const plain = encodeSetup(state);
+  assert.ok(encoded.ok && plain.ok);
+  assert.ok(encoded.payload.length <= plain.payload.length);
+  const back = await decodeAnySetup(encoded.payload);
+  assert.ok(back.ok);
+  assert.deepEqual(back.state, state);
+});
+
+test('compact: links made before compression existed still open', async () => {
+  const old = encodeSetup(STATE);
+  assert.ok(old.ok);
+  const back = await decodeAnySetup(old.payload);
+  assert.ok(back.ok);
+  assert.deepEqual(back.state, STATE);
+  // A fixed link produced by the original encoder (v1), kept as a regression fixture.
+  const fixture = Buffer.from(JSON.stringify({ v: 1, script: 'say Hello, world!', settings: { version: '26.3+', spawnHeight: 1, selfCleaning: true } })).toString('base64url');
+  const fromFixture = await decodeAnySetup(fixture);
+  assert.ok(fromFixture.ok && fromFixture.state.script === 'say Hello, world!');
+});
+
+test('compact: corrupt, truncated, wrong or hostile links fail safely with a message', async () => {
+  const good = await encodeSetupCompact(BIG);
+  assert.ok(good.ok);
+  const { deflateRawSync } = await import('node:zlib');
+  const make = (/** @type {unknown} */ value) => COMPACT_PREFIX + deflateRawSync(Buffer.from(JSON.stringify(value))).toString('base64url');
+  const cases = [
+    COMPACT_PREFIX,
+    `${COMPACT_PREFIX}!!!`,
+    `${COMPACT_PREFIX}AAAA`,
+    good.payload.slice(0, good.payload.length - 10),
+    good.payload.slice(0, 20),
+    COMPACT_PREFIX + Buffer.from('not deflate data').toString('base64url'),
+    make('string'), make({}), make([]), make([2, 'x']), make([3, 'x', '26.3+', 1, 1]), make([2, 5, '26.3+', 1, 1]),
+    make([2, 'x', '9.9', 1, 1]), make([2, 'x', '26.3+', -1, 1]), make([2, 'x', '26.3+', 1, 2]), make([2, 'x', '26.3+', 1.5, 1]),
+    make([2, 'x'.repeat(300000), '26.3+', 1, 1]),
+  ];
+  for (const payload of cases) {
+    const r = await decodeAnySetup(payload);
+    assert.equal(r.ok, false, payload.slice(0, 40));
+    assert.ok(/** @type {any} */ (r).error.length > 5);
+  }
+});
+
+test('compact: a decompression bomb is refused', async () => {
+  const { deflateRawSync } = await import('node:zlib');
+  const bomb = COMPACT_PREFIX + deflateRawSync(Buffer.from(JSON.stringify([2, 'a'.repeat(MAX_DECOMPRESSED_BYTES * 3), '26.3+', 1, 1]))).toString('base64url');
+  assert.ok(bomb.length < 10_000);
+  const r = await decodeAnySetup(bomb);
+  assert.equal(r.ok, false);
+});
+
+test('compact: oversize scripts are refused when encoding', async () => {
+  const r = await encodeSetupCompact({ script: 'x'.repeat(200_001), settings: BIG.settings });
+  assert.equal(r.ok, false);
+});

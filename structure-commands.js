@@ -146,7 +146,10 @@ export function generateStructureCommands(state, versionId, options = DEFAULT_PL
     }
   }
 
-  const boxes = mergeBoxes(cells);
+  // Command blocks are written one by one after the boxes (they carry a direction and a command, so they never merge).
+  const plain = cells.filter((c) => c.props === null);
+  const commandBlocks = cells.filter((c) => c.props !== null);
+  const boxes = mergeBoxes(plain);
   for (const box of boxes) {
     const volume = (box.x2 - box.x1 + 1) * (box.y2 - box.y1 + 1) * (box.z2 - box.z1 + 1);
     if (volume > FILL_BLOCK_LIMIT) {
@@ -158,6 +161,12 @@ export function generateStructureCommands(state, versionId, options = DEFAULT_PL
         ? profile.placement.setblock(pos(box.x1, box.y1, box.z1), box.block)
         : profile.placement.fill(pos(box.x1, box.y1, box.z1), pos(box.x2, box.y2, box.z2), box.block),
     );
+  }
+
+  for (const c of commandBlocks) {
+    const p = /** @type {NonNullable<typeof c.props>} */ (c.props);
+    commands.push(profile.placement.commandBlock(pos(c.x, c.y, c.z), c.block, p.facing, p.command, p.auto));
+    if (p.command === '') result.warnings.push(`The command block at (${c.x}, ${c.y}, ${c.z}) has no command.`);
   }
 
   if (mode === 'relative') {
@@ -175,7 +184,7 @@ export function generateStructureCommands(state, versionId, options = DEFAULT_PL
   result.ok = true;
   result.stats = {
     blocks: cells.length,
-    boxes: boxes.length,
+    boxes: boxes.length + commandBlocks.length,
     commands: commands.length,
     chars: commands.reduce((total, command) => total + command.length, 0),
   };

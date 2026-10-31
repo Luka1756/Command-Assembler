@@ -2,30 +2,27 @@
 import { isValidSpawnHeight } from './limits.js';
 import { EXAMPLES } from './examples.js';
 import { DEFAULT_SCRIPT } from './settings.js';
-import { MAX_CREATIONS, MAX_NAME_CHARS, loadCreations, saveCreations } from './storage.js';
+import { MAX_NAME_CHARS } from './storage.js';
 import { button, createStatus, el, input, select } from './dom.js';
 
 /** @typedef {import('./types').Creation} Creation */
-
-/** @returns {string} */
-function newId() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 /**
  * Example library: bundled community examples (read-only) and the user's own
  * creations (saved in this browser).
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./store.js').createStore>} store
- * @param {{ confirmReplace: () => boolean }} options
+ * @param {ReturnType<typeof import('./creations-store.js').createCreationsStore>} creationsStore
+ * @param {{ confirmReplace: () => boolean, onPublish?: (creation: Creation) => void }} options
  */
-export function initLibrary(root, store, { confirmReplace }) {
+export function initLibrary(root, store, creationsStore, { confirmReplace, onPublish }) {
   const sourceButtons = Array.from(root.querySelectorAll('.source-row'), (b) => /** @type {HTMLButtonElement} */ (b));
   const countMine = el(root, '#count-mine');
   const countCommunity = el(root, '#count-community');
   const exampleSelect = select(root, '#example-select');
   const loadButton = button(root, '#load-example');
   const deleteButton = button(root, '#delete-creation');
+  const publishButton = button(root, '#publish-creation');
   const description = el(root, '#example-desc');
   const mineTools = el(root, '#mine-tools');
   const nameInput = input(root, '#creation-name');
@@ -34,14 +31,11 @@ export function initLibrary(root, store, { confirmReplace }) {
 
   /** @type {'mine' | 'community'} */
   let source = 'community';
-  let creations = loadCreations();
-
-  /** @param {string} id */
-  const findCreation = (id) => creations.find((c) => c.id === id);
+  const findCreation = (/** @type {string} */ id) => creationsStore.get(id);
 
   function fillSelect(selectedId = '') {
     exampleSelect.replaceChildren();
-    const empty = source === 'mine' && creations.length === 0;
+    const empty = source === 'mine' && creationsStore.all().length === 0;
     exampleSelect.add(new Option(empty ? 'No saved creations yet' : 'Choose an example…', ''));
 
     if (source === 'community') {
@@ -58,8 +52,8 @@ export function initLibrary(root, store, { confirmReplace }) {
         group.append(new Option(example.title, example.id));
       }
     } else {
-      for (const creation of [...creations].sort((a, b) => b.savedAt - a.savedAt)) {
-        exampleSelect.add(new Option(creation.name, creation.id));
+      for (const creation of [...creationsStore.all()].sort((a, b) => b.savedAt - a.savedAt)) {
+        exampleSelect.add(new Option(creation.structure ? `${creation.name} (3D)` : creation.name, creation.id));
       }
     }
     exampleSelect.disabled = empty;
@@ -71,27 +65,29 @@ export function initLibrary(root, store, { confirmReplace }) {
     const id = exampleSelect.value;
     loadButton.disabled = !id;
     deleteButton.disabled = !id;
+    publishButton.disabled = !id;
     if (!id) {
       description.textContent =
         source === 'community'
-          ? 'Bundled examples. Loading one replaces the script and keeps your build settings.'
+          ? 'Examples that come with the tool. Loading one replaces the script and keeps your build settings.'
           : 'Your saved scripts and their build settings, stored in this browser only.';
     } else if (source === 'community') {
       description.textContent = EXAMPLES.find((example) => example.id === id)?.description ?? '';
     } else {
       const creation = findCreation(id);
       description.textContent = creation
-        ? `Saved ${new Date(creation.savedAt).toLocaleDateString()}. Loading restores the script and its build settings.`
+        ? `Saved ${new Date(creation.savedAt).toLocaleDateString()}. Loading restores the script and its build settings.${creation.structure ? ' It also holds a 3D structure: open it from My creations in the Block placer.' : ''}`
         : '';
     }
   }
 
   function refresh(selectedId = '') {
-    countMine.textContent = String(creations.length);
+    countMine.textContent = String(creationsStore.all().length);
     countCommunity.textContent = String(EXAMPLES.length);
     for (const b of sourceButtons) b.setAttribute('aria-pressed', String(b.dataset.source === source));
     mineTools.hidden = source !== 'mine';
     deleteButton.hidden = source !== 'mine';
+    publishButton.hidden = source !== 'mine' || !onPublish;
     fillSelect(selectedId);
     describeSelection();
   }
@@ -130,35 +126,34 @@ export function initLibrary(root, store, { confirmReplace }) {
     if (!script.trim()) return setStatus('Nothing to save: the script is empty.', 'error');
     if (!isValidSpawnHeight(settings.spawnHeight)) return setStatus('Fix the spawn height before saving.', 'error');
 
-    const existing = creations.find((c) => c.name.toLowerCase() === name.toLowerCase());
-    if (!existing && creations.length >= MAX_CREATIONS) {
-      return setStatus(`You can save up to ${MAX_CREATIONS} creations. Delete one first.`, 'error');
-    }
-
-    /** @type {Creation} */
-    const creation = { id: existing?.id ?? newId(), name, script, settings: { ...settings }, savedAt: Date.now() };
-    const next = existing ? creations.map((c) => (c.id === existing.id ? creation : c)) : [...creations, creation];
-    const saved = saveCreations(next);
+    // Saving from here stores the script and settings; a 3D structure already saved under this name is kept.
+    const existing = creationsStore.findByName(name);
+    const saved = creationsStore.save({ name, script, settings, structure: existing?.structure });
     if (!saved.ok) return setStatus(saved.error, 'error');
 
-    creations = next;
     source = 'mine';
     nameInput.value = '';
-    refresh(creation.id);
-    setStatus(existing ? `Updated "${name}".` : `Saved "${name}".`, 'ok');
+    refresh(saved.id);
+    setStatus(saved.updated ? `Updated "${name}".` : `Saved "${name}".`, 'ok');
+  });
+
+  publishButton.addEventListener('click', () => {
+    const creation = findCreation(exampleSelect.value);
+    if (creation) onPublish?.(creation);
   });
 
   deleteButton.addEventListener('click', () => {
     const creation = findCreation(exampleSelect.value);
     if (!creation) return;
     if (!window.confirm(`Delete "${creation.name}"? This cannot be undone.`)) return;
-    const next = creations.filter((c) => c.id !== creation.id);
-    const saved = saveCreations(next);
-    if (!saved.ok) return setStatus(saved.error, 'error');
-    creations = next;
+    const removed = creationsStore.remove(creation.id);
+    if (!removed.ok) return setStatus(removed.error, 'error');
     refresh();
     setStatus(`Deleted "${creation.name}".`, 'ok');
   });
+
+  // The placer can add, rename and delete too, so keep this list in step.
+  creationsStore.subscribe(() => refresh(source === 'mine' ? exampleSelect.value : ''));
 
   refresh();
 
@@ -172,7 +167,7 @@ export function initLibrary(root, store, { confirmReplace }) {
       const trimmed = script.trim();
       if (trimmed === '' || trimmed === DEFAULT_SCRIPT) return false;
       if (EXAMPLES.some((example) => example.script.trim() === trimmed)) return false;
-      return !creations.some((creation) => creation.script.trim() === trimmed);
+      return !creationsStore.all().some((creation) => creation.script.trim() === trimmed);
     },
   };
 }

@@ -29,12 +29,17 @@ import { escapeSnbtString } from './escape.js';
  * @typedef {object} BlockPlacement
  * @property {(pos: string, block: string) => string} setblock
  * @property {(from: string, to: string, block: string) => string} fill
+ * @property {(pos: string, block: string, facing: string, command: string, auto: boolean) => string} commandBlock
+ *   one command block: facing state plus Command and auto data. The `{Command:"…",auto:1}` data form matches the
+ *   reference cleanup command; the `[facing=…]` state is standard block-state syntax but was not tested in game.
  */
 
 /** @type {BlockPlacement} */
 const PLACEMENT = {
   setblock: (pos, block) => `setblock ${pos} ${block}`,
   fill: (from, to, block) => `fill ${from} ${to} ${block}`,
+  commandBlock: (pos, block, facing, command, auto) =>
+    `setblock ${pos} ${block}[facing=${facing}]{Command:"${escapeSnbtString(command)}"${auto ? ',auto:1' : ''}}`,
 };
 
 /** @param {string} command */

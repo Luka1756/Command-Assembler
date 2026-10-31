@@ -1,5 +1,5 @@
 // @ts-check
-import { normalizeBlockId } from './blocks.js';
+import { FACINGS, commandBlockType, isCommandBlock, isFacing, normalizeBlockId, validateBlockCommand } from './blocks.js';
 
 /**
  * The 3D editor's data model. Pure logic, no DOM.
@@ -27,6 +27,15 @@ import { normalizeBlockId } from './blocks.js';
  *   Height 2 → floor and ceiling, no wall layers.
  *   Width or Length 1 → the two opposite walls are the same column, so one wall column.
  *
+ * SHELL
+ *   The F/W/C boundary can be switched off (state.shell = false). Then nothing is generated and the
+ *   structure holds only blocks placed by hand, on an empty grid of the same Width × Length.
+ *
+ * COMMAND BLOCKS
+ *   A hand-placed command block carries props: its facing, its command and its Always Active flag.
+ *   Props exist only for cells whose edit is a command block id; they follow the edit (erase, restore,
+ *   reset and out-of-range resizes remove them together).
+ *
  * EDITS
  *   Manual changes are stored as overrides on top of the generated structure, keyed by cell:
  *   a block id (placed or replaced) or null (erased). An edit is custom and stays custom when the
@@ -43,10 +52,18 @@ export const MAX_BLOCKS = 16_000;
 /** @typedef {{ width: number, height: number, length: number }} Dims */
 /** @typedef {{ floor: string, wall: string, ceiling: string }} RoleBlocks */
 /**
+ * @typedef {object} CellProps
+ * @property {import('./blocks.js').Facing} facing
+ * @property {string} command
+ * @property {boolean} auto  Always Active
+ */
+/**
  * @typedef {object} StructureState
  * @property {Dims} dims
  * @property {RoleBlocks} roles
+ * @property {boolean} shell  generate the floor, wall and ceiling
  * @property {ReadonlyMap<string, string | null>} edits  cell key → block id, or null for erased
+ * @property {ReadonlyMap<string, CellProps>} props  command block settings, by cell key
  */
 /**
  * @typedef {object} ResolvedCell
@@ -56,6 +73,7 @@ export const MAX_BLOCKS = 16_000;
  * @property {string} block
  * @property {RoleId | null} role  the generated role of this cell, if any
  * @property {boolean} custom  true when the block differs from the generated one
+ * @property {CellProps | null} props  command block settings, when the block is a command block
  */
 /** @typedef {{ ok: true, state: StructureState }} StateOk */
 /** @typedef {{ ok: false, error: string }} Failure */
@@ -159,7 +177,26 @@ export function countGenerated({ width, height, length }) {
  * @returns {StructureState}
  */
 export function createState(dims = DEFAULT_DIMENSIONS, roles = DEFAULT_ROLE_BLOCKS) {
-  return { dims: { ...dims }, roles: { ...roles }, edits: new Map() };
+  return { dims: { ...dims }, roles: { ...roles }, shell: true, edits: new Map(), props: new Map() };
+}
+
+/**
+ * Role of the generated block, taking the shell switch into account.
+ * @param {StructureState} state
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @returns {RoleId | null}
+ */
+const roleAt = (state, x, y, z) => (state.shell ? generatedRole(state.dims, x, y, z) : null);
+
+/** @param {StructureState} state */
+const generatedCount = (state) => (state.shell ? countGenerated(state.dims) : 0);
+
+/** Default props for a new command block of the given block id. */
+export function defaultProps(/** @type {string} */ blockId, /** @type {import('./blocks.js').Facing} */ facing = 'north') {
+  const type = commandBlockType(blockId);
+  return { facing, command: '', auto: type ? type.autoByDefault : false };
 }
 
 /**
@@ -170,7 +207,7 @@ export function createState(dims = DEFAULT_DIMENSIONS, roles = DEFAULT_ROLE_BLOC
  * @returns {string | null}
  */
 export function generatedBlock(state, x, y, z) {
-  const role = generatedRole(state.dims, x, y, z);
+  const role = roleAt(state, x, y, z);
   return role ? state.roles[role] : null;
 }
 
@@ -184,11 +221,13 @@ export function generatedBlock(state, x, y, z) {
 export function cellInfo(state, x, y, z) {
   const { width, height, length } = state.dims;
   const inBounds = x >= 0 && y >= 0 && z >= 0 && x < width && y < height && z < length;
-  const role = generatedRole(state.dims, x, y, z);
+  const role = roleAt(state, x, y, z);
   const generated = role ? state.roles[role] : null;
   const edit = state.edits.get(keyOf(x, y, z));
   const block = edit !== undefined ? edit : generated;
-  return { inBounds, role, generated, block, custom: edit !== undefined };
+  const props = block !== null && isCommandBlock(block) ? (state.props.get(keyOf(x, y, z)) ?? defaultProps(block)) : null;
+  // An erase edit on a cell that has nothing generated changes nothing, so it is not shown as custom.
+  return { inBounds, role, generated, block, custom: edit !== undefined && edit !== generated, props };
 }
 
 /**
@@ -203,18 +242,19 @@ export function resolveCells(state) {
   for (let y = 0; y < height; y++) {
     for (let z = 0; z < length; z++) {
       for (let x = 0; x < width; x++) {
-        const role = generatedRole(state.dims, x, y, z);
-        if (role) cells.set(keyOf(x, y, z), { x, y, z, block: state.roles[role], role, custom: false });
+        const role = roleAt(state, x, y, z);
+        if (role) cells.set(keyOf(x, y, z), { x, y, z, block: state.roles[role], role, custom: false, props: null });
       }
     }
   }
   for (const [key, value] of state.edits) {
     const [x, y, z] = parseKey(key);
-    const role = generatedRole(state.dims, x, y, z);
+    const role = roleAt(state, x, y, z);
     if (value === null) {
       cells.delete(key);
     } else {
-      cells.set(key, { x, y, z, block: value, role, custom: true });
+      const props = isCommandBlock(value) ? (state.props.get(key) ?? defaultProps(value)) : null;
+      cells.set(key, { x, y, z, block: value, role, custom: value !== (role ? state.roles[role] : null), props });
     }
   }
   return Array.from(cells.values()).sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
@@ -225,10 +265,10 @@ export function resolveCells(state) {
  * @param {StructureState} state
  */
 export function countBlocks(state) {
-  let total = countGenerated(state.dims);
+  let total = generatedCount(state);
   for (const [key, value] of state.edits) {
     const [x, y, z] = parseKey(key);
-    const generated = generatedRole(state.dims, x, y, z) !== null;
+    const generated = roleAt(state, x, y, z) !== null;
     if (value === null) {
       if (generated) total--;
     } else if (!generated) {
@@ -239,18 +279,28 @@ export function countBlocks(state) {
 }
 
 /** Number of cells whose block was changed by hand. */
-export const countEdits = (/** @type {StructureState} */ state) => state.edits.size;
+export function countEdits(/** @type {StructureState} */ state) {
+  let total = 0;
+  for (const [key, value] of state.edits) {
+    const [x, y, z] = parseKey(key);
+    const role = roleAt(state, x, y, z);
+    if (value !== (role ? state.roles[role] : null) || state.props.has(key)) total++;
+  }
+  return total;
+}
 
 /**
  * Place, replace or (with null) erase one cell. Returns the same state object when nothing changes.
+ * A command block gets props (given, or defaults); any other block, and erasing, removes props.
  * @param {StructureState} state
  * @param {number} x
  * @param {number} y
  * @param {number} z
  * @param {string | null} block  a block id, or null to erase
+ * @param {Partial<CellProps>} [propsIn]  facing / command / auto for a command block
  * @returns {StateOk | Failure}
  */
-export function setCell(state, x, y, z, block) {
+export function setCell(state, x, y, z, block, propsIn) {
   const { width, height, length } = state.dims;
   if (![x, y, z].every(Number.isInteger) || !cellInfo(state, x, y, z).inBounds) {
     return fail(`Cell (${x}, ${y}, ${z}) is outside the structure (x 0–${width - 1}, y 0–${height - 1}, z 0–${length - 1}).`);
@@ -264,18 +314,50 @@ export function setCell(state, x, y, z, block) {
   }
 
   const info = cellInfo(state, x, y, z);
-  if (info.block === id) return { ok: true, state };
+  const key = keyOf(x, y, z);
+
+  /** @type {CellProps | null} */
+  let nextProps = null;
+  if (id !== null && isCommandBlock(id)) {
+    const base = state.props.get(key) ?? defaultProps(id);
+    nextProps = { ...base, ...propsIn };
+    if (!isFacing(nextProps.facing)) return fail('Choose a facing: north, south, east, west, up or down.');
+    const checked = validateBlockCommand(nextProps.command);
+    if (!checked.ok) return fail(checked.error);
+  }
+  const previous = state.props.get(key) ?? null;
+  const sameProps = JSON.stringify(previous) === JSON.stringify(nextProps) || (previous === null && nextProps === null);
+  const wantEdit = !(id === info.generated && nextProps === null);
+  if (info.block === id && sameProps && wantEdit === state.edits.has(key)) return { ok: true, state };
 
   const edits = new Map(state.edits);
-  const key = keyOf(x, y, z);
-  if (id === info.generated) edits.delete(key);
+  const props = new Map(state.props);
+  // A command block is always stored as an edit, even where the shell would put the same id, so its props have a home.
+  if (id === info.generated && nextProps === null) edits.delete(key);
   else edits.set(key, id);
+  if (nextProps) props.set(key, nextProps);
+  else props.delete(key);
 
-  const next = { ...state, edits };
+  const next = { ...state, edits, props };
   if (countBlocks(next) > MAX_BLOCKS && countBlocks(next) > countBlocks(state)) {
     return fail(`A structure can hold at most ${MAX_BLOCKS.toLocaleString('en-US')} blocks.`);
   }
   return { ok: true, state: next };
+}
+
+/**
+ * Change the facing, command or Always Active flag of a command block that is already placed.
+ * @param {StructureState} state
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @param {Partial<CellProps>} change
+ * @returns {StateOk | Failure}
+ */
+export function setProps(state, x, y, z, change) {
+  const info = cellInfo(state, x, y, z);
+  if (!info.inBounds || info.block === null || !isCommandBlock(info.block)) return fail('Select a command block first.');
+  return setCell(state, x, y, z, info.block, change);
 }
 
 /**
@@ -290,17 +372,41 @@ export function restoreCell(state, x, y, z) {
   const key = keyOf(x, y, z);
   if (!state.edits.has(key)) return { ok: true, state };
   const edits = new Map(state.edits);
+  const props = new Map(state.props);
   edits.delete(key);
-  return { ok: true, state: { ...state, edits } };
+  props.delete(key);
+  return { ok: true, state: { ...state, edits, props } };
 }
 
 /**
- * Discard every manual edit, keeping size and F/W/C blocks.
+ * Discard every manual edit, keeping size, F/W/C blocks and the shell setting.
  * @param {StructureState} state
  * @returns {StructureState}
  */
 export function resetEdits(state) {
-  return state.edits.size === 0 ? state : { ...state, edits: new Map() };
+  return state.edits.size === 0 ? state : { ...state, edits: new Map(), props: new Map() };
+}
+
+/**
+ * Remove every block, generated and hand-placed, and keep the size and settings.
+ * @param {StructureState} state
+ * @returns {StructureState}
+ */
+export function clearAll(state) {
+  /** @type {Map<string, string | null>} */
+  const edits = new Map();
+  for (const c of resolveCells(state)) edits.set(keyOf(c.x, c.y, c.z), null);
+  return edits.size === 0 && state.edits.size === 0 ? state : { ...state, edits, props: new Map() };
+}
+
+/**
+ * Turn the generated F/W/C boundary on or off. Edits stay as they are.
+ * @param {StructureState} state
+ * @param {boolean} shell
+ * @returns {StructureState}
+ */
+export function setShell(state, shell) {
+  return state.shell === shell ? state : { ...state, shell };
 }
 
 /**
@@ -327,22 +433,23 @@ export function editsOutside(state, dims) {
 export function changeDimensions(state, dims) {
   const valid = validateDimensions(dims);
   if (!valid.ok) return valid;
-  if (
-    dims.width === state.dims.width &&
-    dims.height === state.dims.height &&
-    dims.length === state.dims.length
-  ) {
+  if (dims.width === state.dims.width && dims.height === state.dims.height && dims.length === state.dims.length) {
     return { ok: true, state, dropped: 0 };
   }
   /** @type {Map<string, string | null>} */
   const edits = new Map();
+  /** @type {Map<string, CellProps>} */
+  const props = new Map();
   let dropped = 0;
   for (const [key, value] of state.edits) {
     const [x, y, z] = parseKey(key);
-    if (x < dims.width && y < dims.height && z < dims.length) edits.set(key, value);
-    else dropped++;
+    if (x < dims.width && y < dims.height && z < dims.length) {
+      edits.set(key, value);
+      const p = state.props.get(key);
+      if (p) props.set(key, p);
+    } else dropped++;
   }
-  const next = { ...state, dims: { ...dims }, edits };
+  const next = { ...state, dims: { ...dims }, edits, props };
   if (countBlocks(next) > MAX_BLOCKS) {
     return fail(`With the edits kept, that size holds ${countBlocks(next).toLocaleString('en-US')} blocks; the limit is ${MAX_BLOCKS.toLocaleString('en-US')}.`);
   }
@@ -351,6 +458,7 @@ export function changeDimensions(state, dims) {
 
 /**
  * Change the block used for the floor, walls or ceiling. Manual edits stay as they are.
+ * Command blocks are refused here: they need a direction and a command, so use the Place tool.
  * @param {StructureState} state
  * @param {RoleId} role
  * @param {string} input
@@ -359,6 +467,9 @@ export function changeDimensions(state, dims) {
 export function setRoleBlock(state, role, input) {
   const normalized = normalizeBlockId(input);
   if (!normalized.ok) return normalized;
+  if (isCommandBlock(normalized.id)) return fail('A command block cannot be a boundary block. Place command blocks with the Place tool.');
   if (state.roles[role] === normalized.id) return { ok: true, state };
   return { ok: true, state: { ...state, roles: { ...state.roles, [role]: normalized.id } } };
 }
+
+export { FACINGS };

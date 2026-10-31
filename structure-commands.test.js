@@ -298,3 +298,32 @@ test('transfer: an enormous result is flagged as too long for a script', () => {
   const assessed = assessTransfer('', result.commands, 'replace', SETTINGS);
   assert.equal(assessed.tooLongForScript, true);
 });
+
+// ---------- command blocks ----------
+
+test('command blocks: written one by one after the boxes, with facing, escaped command and auto', async () => {
+  const { createState, setCell } = await import('./structure.js');
+  let state = createState({ width: 3, height: 3, length: 3 }, { floor: 'minecraft:stone', wall: 'minecraft:stone', ceiling: 'minecraft:stone' });
+  state = /** @type {any} */ (setCell(state, 1, 1, 1, 'minecraft:command_block', { facing: 'east', command: 'say "hi"' })).state;
+  state = /** @type {any} */ (setCell(state, 2, 1, 1, 'minecraft:chain_command_block', { facing: 'up', command: 'say \\ done' })).state;
+  const r = generateStructureCommands(state, '26.3+', { mode: 'absolute', origin: { x: 10, y: 64, z: -5 }, clearArea: false });
+  assert.equal(r.ok, true);
+  const last = r.commands.slice(-2);
+  assert.deepEqual(last, [
+    'setblock 11 65 -4 minecraft:command_block[facing=east]{Command:"say \\"hi\\""}',
+    'setblock 12 65 -4 minecraft:chain_command_block[facing=up]{Command:"say \\\\ done",auto:1}',
+  ]);
+  // no duplicate placement: the command block cells are not part of any fill
+  assert.equal(r.commands.filter((c) => c.startsWith('fill')).every((c) => !c.includes('minecraft:command_block')), true);
+});
+
+test('command blocks: deterministic regardless of edit order; empty command warns', async () => {
+  const { createState, setCell } = await import('./structure.js');
+  const base = createState({ width: 3, height: 3, length: 3 });
+  const a = /** @type {any} */ (setCell(/** @type {any} */ (setCell(base, 1, 1, 1, 'minecraft:command_block', { facing: 'north' })).state, 1, 1, 2, 'minecraft:repeating_command_block', { facing: 'south' })).state;
+  const b = /** @type {any} */ (setCell(/** @type {any} */ (setCell(base, 1, 1, 2, 'minecraft:repeating_command_block', { facing: 'south' })).state, 1, 1, 1, 'minecraft:command_block', { facing: 'north' })).state;
+  const opts = { mode: /** @type {'absolute'} */ ('absolute'), origin: { x: 0, y: 0, z: 0 }, clearArea: false };
+  const ra = generateStructureCommands(a, '26.3+', opts);
+  assert.deepEqual(ra.commands, generateStructureCommands(b, '26.3+', opts).commands);
+  assert.equal(ra.warnings.length, 2);
+});

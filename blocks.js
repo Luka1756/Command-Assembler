@@ -72,3 +72,50 @@ const COMMON_PATHS = [
 
 /** Common block ids offered by the picker. Not a complete list; any valid id can be typed. */
 export const COMMON_BLOCK_IDS = COMMON_PATHS.map((path) => `minecraft:${path}`);
+
+/**
+ * Command blocks. Each type has its own block id; the direction is the `facing` block state and the
+ * command is block entity data. `auto` is the "Always Active" flag (Impulse blocks need redstone unless it is set).
+ * Whether a command block runs at all, and in what order a chain runs, is decided by the game, not by this tool.
+ */
+export const COMMAND_BLOCK_TYPES = /** @type {const} */ ([
+  { id: 'impulse', block: 'minecraft:command_block', label: 'Impulse command block', letter: 'I', autoByDefault: false },
+  { id: 'chain', block: 'minecraft:chain_command_block', label: 'Chain command block', letter: 'CH', autoByDefault: true },
+  { id: 'repeat', block: 'minecraft:repeating_command_block', label: 'Repeating command block', letter: 'R', autoByDefault: true },
+]);
+
+/** Directions a command block can face, as Minecraft names them, with their unit vectors (+x east, +y up, +z south). */
+export const FACINGS = /** @type {const} */ ([
+  { id: 'north', label: 'North', vector: [0, 0, -1] },
+  { id: 'south', label: 'South', vector: [0, 0, 1] },
+  { id: 'east', label: 'East', vector: [1, 0, 0] },
+  { id: 'west', label: 'West', vector: [-1, 0, 0] },
+  { id: 'up', label: 'Up', vector: [0, 1, 0] },
+  { id: 'down', label: 'Down', vector: [0, -1, 0] },
+]);
+
+/** @typedef {'north' | 'south' | 'east' | 'west' | 'up' | 'down'} Facing */
+
+/** @param {unknown} value @returns {value is Facing} */
+export const isFacing = (value) => FACINGS.some((f) => f.id === value);
+
+/** @param {string} blockId @returns {(typeof COMMAND_BLOCK_TYPES)[number] | undefined} */
+export const commandBlockType = (blockId) => COMMAND_BLOCK_TYPES.find((t) => t.block === blockId);
+
+export const isCommandBlock = (/** @type {string} */ blockId) => commandBlockType(blockId) !== undefined;
+
+/** Longest command text a block may hold (the same figure the command block text field accepts). */
+export const MAX_BLOCK_COMMAND_CHARS = 32_500;
+
+/**
+ * @param {unknown} text
+ * @returns {{ ok: true, text: string } | { ok: false, error: string }}
+ */
+export function validateBlockCommand(text) {
+  if (typeof text !== 'string') return { ok: false, error: 'The command must be text.' };
+  if (/[\r\n]/.test(text)) return { ok: false, error: 'A command block holds one command on one line.' };
+  if (text.length > MAX_BLOCK_COMMAND_CHARS) {
+    return { ok: false, error: `A command can be at most ${MAX_BLOCK_COMMAND_CHARS.toLocaleString('en-US')} characters.` };
+  }
+  return { ok: true, text };
+}

@@ -1,5 +1,6 @@
 // @ts-check
 import { DEFAULT_SETTINGS, coerceSettings } from './settings.js';
+import { parseStructure } from './structure-io.js';
 
 /** @typedef {import('./types').AppState} AppState */
 /** @typedef {import('./types').Creation} Creation */
@@ -57,22 +58,40 @@ export function saveWorkspace(state) {
   }
 }
 
-/** @returns {Creation[]} */
-export function loadCreations() {
+/**
+ * Saved creations, with a note for anything that had to be set aside.
+ * Creations saved before 3D structures existed have no `structure` and load unchanged (the storage key and
+ * format are the same: `structure` is an optional addition). A creation whose structure fails validation keeps its
+ * script and settings and loses only the structure, and the issue is reported.
+ * @returns {{ creations: Creation[], issues: string[] }}
+ */
+export function loadCreationsDetailed() {
   const data = readJson(CREATIONS_KEY);
-  if (!Array.isArray(data)) return [];
+  /** @type {string[]} */
+  const issues = [];
+  if (!Array.isArray(data)) return { creations: [], issues };
   /** @type {Creation[]} */
   const creations = [];
   for (const item of data) {
     if (typeof item !== 'object' || item === null) continue;
-    const { id, name, script, settings, savedAt } = /** @type {Record<string, unknown>} */ (item);
+    const { id, name, script, settings, savedAt, structure } = /** @type {Record<string, unknown>} */ (item);
     const checked = coerceSettings(settings);
     if (typeof id !== 'string' || typeof name !== 'string' || typeof script !== 'string') continue;
     if (!checked.ok || typeof savedAt !== 'number') continue;
-    creations.push({ id, name, script, settings: checked.settings, savedAt });
+    /** @type {Creation} */
+    const creation = { id, name, script, settings: checked.settings, savedAt };
+    if (structure !== undefined) {
+      const parsed = parseStructure(structure);
+      if (parsed.ok) creation.structure = /** @type {import('./types').SerializedStructure} */ (structure);
+      else issues.push(`"${name}": its 3D structure could not be read and was left out. The script and settings were kept.`);
+    }
+    creations.push(creation);
   }
-  return creations;
+  return { creations, issues };
 }
+
+/** @returns {Creation[]} */
+export const loadCreations = () => loadCreationsDetailed().creations;
 
 /**
  * @param {Creation[]} creations
@@ -86,5 +105,32 @@ export function saveCreations(creations) {
     return { ok: true };
   } catch {
     return { ok: false, error: 'Browser storage is full or blocked, so the creation was not saved.' };
+  }
+}
+
+const PLACER_KEY = 'command-assembler:placer:v1';
+
+/**
+ * The block placer's working copy: a serialised structure (see structure-io.js) and a few preferences.
+ * Returned unvalidated; structure-io's parseStructure validates the structure before it is used.
+ * @returns {{ structure: unknown, prefs: Record<string, unknown> } | null}
+ */
+export function loadPlacer() {
+  const data = /** @type {Record<string, unknown> | null} */ (readJson(PLACER_KEY));
+  if (!data || typeof data !== 'object' || data.structure === undefined) return null;
+  const prefs = typeof data.prefs === 'object' && data.prefs !== null ? /** @type {Record<string, unknown>} */ (data.prefs) : {};
+  return { structure: data.structure, prefs };
+}
+
+/**
+ * Best effort, like the script workspace.
+ * @param {unknown} structure
+ * @param {Record<string, unknown>} prefs
+ */
+export function savePlacer(structure, prefs) {
+  try {
+    storage()?.setItem(PLACER_KEY, JSON.stringify({ structure, prefs }));
+  } catch {
+    /* storage unavailable or full */
   }
 }

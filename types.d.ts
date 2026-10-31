@@ -83,12 +83,24 @@ export interface AppState {
   settings: BuildSettings;
 }
 
+/** A structure as stored (see structure-io.js for the format and its validation). */
+export interface SerializedStructure {
+  v: number;
+  dims: { width: number; height: number; length: number };
+  roles: { floor: string; wall: string; ceiling: string };
+  shell: boolean;
+  edits: unknown[][];
+  gen: { mode: string; origin: number[]; clearArea: boolean };
+}
+
 export interface Creation {
   id: string;
   name: string;
   script: string;
   settings: BuildSettings;
   savedAt: number;
+  /** Present on creations saved from the block placer. Older creations have none. */
+  structure?: SerializedStructure;
 }
 
 export interface Example {
